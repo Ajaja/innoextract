@@ -1,0 +1,45 @@
+name: Windows x64
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (CLANG64 environment)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-boost
+          
+      - name: Configure and build
+        shell: msys2 {0}
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STATIC_LIBS=ON \
+            -DBZIP2_LIBRARY_RELEASE=/clang64/lib/libbz2.a \
+            -DCMAKE_CXX_FLAGS="-static" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -Wl,--strip-all" \
+            -DCMAKE_BUILD_TYPE=Release
+
+          cmake --build . --config Release --parallel $(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: innoextract.zip
+          path: build/innoextract.exe
